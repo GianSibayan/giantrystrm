@@ -620,7 +620,77 @@ elif st.session_state.page_selection == "prediction":
         Higher bars indicate more important features in determining coffee similarity.
         """)
 
+        #Feature Importance for Description to Rating
+        # Calculate the average sentiment score for each coffee description (mean of the 3 sentiment scores)
+        df['average_sentiment'] = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']].mean(axis=1)
 
+        # Rescale sentiment scores from range [0, 1] to range [84, 98]
+        min_rating = 84
+        max_rating = 98
+        df['rescaled_sentiment'] = min_rating + (df['average_sentiment'] * (max_rating - min_rating))
+
+        # Hexbin plot for rescaled sentiment scores vs ratings
+        plt.figure(figsize=(8, 6))
+        plt.hexbin(df['rescaled_sentiment'], df['rating'], gridsize=30, cmap='Blues')
+
+        # Add color bar and labels
+        plt.colorbar(label='Frequency')
+        plt.title('Hexbin Plot of Rescaled Sentiment Scores vs Ratings')
+        plt.xlabel('Sentiment Scores')
+        plt.ylabel('Ratings')
+
+        # Show the plot in Streamlit
+        st.pyplot(plt)
+
+        st.write("""
+        The hexbin plot shows the relationship between "Sentiment Scores" and "Ratings." The plot suggests a positive correlation between "Rescaled Sentiment Scores" and "Ratings." As the sentiment scores increase, the ratings tend to also increase.
+        """)
+
+        # Prepare data for scatter plot
+        X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
+        y = df['rating']
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+        # Initialize and fit the Random Forest Regressor
+        rf = RandomForestRegressor(random_state=42)
+        rf.fit(X_train, y_train)
+
+        # Make predictions
+        y_pred = rf.predict(X_test)
+
+        # Scatter plot of actual vs predicted ratings
+        plt.figure(figsize=(8, 6))
+        plt.scatter(y_test, y_pred, alpha=0.5)
+        plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')  # Line of perfect prediction
+        plt.xlabel("Actual Ratings")
+        plt.ylabel("Predicted Ratings")
+        plt.title("Actual vs Predicted Ratings")
+        plt.xlim([min(y_test), max(y_test)])  # Set x-axis limits to the range of actual ratings
+        plt.ylim([min(y_test), max(y_test)])  # Set y-axis limits to the range of predicted ratings
+        plt.grid()
+
+        # Show the scatter plot in Streamlit
+        st.pyplot(plt)
+
+        # Calculate and display MAE and RMSE
+        mae = np.mean(np.abs(y_test - y_pred))
+        rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
+
+        st.write(f"The model's Mean Absolute Error (MAE) is 1.1728734991620522 and the Root Mean Squared Error (RMSE) is 1.5956235031050126. These metrics indicate the average magnitude of the model's prediction errors. A lower MAE suggests smaller average errors, while a lower RMSE suggests smaller average squared errors, with more weight given to larger errors.")
+
+        st.markdown("""
+        ### Understanding the Rating Prediction Model
+        
+        This rating prediction model utilizes multiple features derived from coffee descriptions to estimate the overall rating:
+        
+        1. **Description Sentiment Analysis**: Analyzes the sentiment of the coffee descriptions using Natural Language Processing (NLP) techniques to quantify the emotional tone and context.
+        
+        2. **Sentiment Scores**: Incorporates individual sentiment scores from multiple descriptions to capture different perspectives on the coffee's characteristics.
+        
+        3. **Model Training**: Utilizes a Random Forest Regressor to learn from historical data, identifying patterns and relationships between sentiment scores and actual ratings.
+        
+        The bar chart above represents the contribution of each sentiment score to the rating prediction.
+        """)
 
 
     # Your content for the PREDICTION page goes here
