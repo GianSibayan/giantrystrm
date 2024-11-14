@@ -491,7 +491,7 @@ elif st.session_state.page_selection == "description_to_rating":
      # Add tabs for different features
     tab1, tab2 = st.tabs(["Describe to Rate The Coffee", "Model Insights"])
 
-     with tab1:
+    with tab1:
          
     # Check if sentiment score columns exist; if not, create them
     if not all(col in df.columns for col in ['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']):
