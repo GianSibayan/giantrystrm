@@ -504,23 +504,8 @@ elif st.session_state.page_selection == "description_to_rating":
     # Initialize the Random Forest Regressor
     rf = RandomForestRegressor(random_state=42)
 
-    # Set up GridSearchCV for hyperparameter tuning
-    param_grid = {
-        'n_estimators': [50, 100, 200],
-        'max_depth': [None, 10, 20, 30],
-        'min_samples_split': [2, 5, 10],
-        'min_samples_leaf': [1, 2, 4],
-        'max_features': ['auto', 'sqrt']
-    }
-
-    # Set up GridSearchCV
-    grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2, scoring='neg_mean_squared_error')
-
     # Fit the model
-    grid_search.fit(X_train, y_train)
-
-    # Get the best model
-    best_model = grid_search.best_estimator_
+    rf.fit(X_train, y_train)
 
     # Input field for coffee name
     coffee_names = df['name'].unique() 
@@ -538,25 +523,26 @@ elif st.session_state.page_selection == "description_to_rating":
     new_desc_2 = st.text_area("New Description 2", "")
     new_desc_3 = st.text_area("New Description 3", "")
 
-    if st.button("Add Descriptions"):
-        # Append the new descriptions to the existing ones
-        updated_desc_1 = f"{desc_1} {new_desc_1}".strip()
-        updated_desc_2 = f"{desc_2} {new_desc_2}".strip()
-        updated_desc_3 = f"{desc_3} {new_desc_3}".strip()
+    if st.button("Predict Rating"):
+        # Calculate sentiment scores for the new descriptions
+        sentiment_score_1 = extract_sentiment(new_desc_1)
+        sentiment_score_2 = extract_sentiment(new_desc_2)
+        sentiment_score_3 = extract_sentiment(new_desc_3)
 
-        # Update the DataFrame with the new descriptions
-        df.loc[df['coffee_name'] == selected_coffee, ['desc_1', 'desc_2', 'desc_3']] = updated_desc_1, updated_desc_2, updated_desc_3
-        
-        # Recalculate sentiment scores for the updated descriptions
-        df.loc[df['coffee_name'] == selected_coffee, 'sentiment_score_1'] = extract_sentiment(updated_desc_1)
-        df.loc[df['coffee_name'] == selected_coffee, 'sentiment_score_2'] = extract_sentiment(updated_desc_2)
-        df.loc[df['coffee_name'] == selected_coffee, 'sentiment_score_3'] = extract_sentiment(updated_desc_3)
+        # Prepare the input for prediction
+        new_data = pd.DataFrame([[sentiment_score_1, sentiment_score_2, sentiment_score_3]], 
+                                 columns=['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3'])
+
+        # Predict the new rating
+        predicted_rating = rf.predict(new_data)
 
         # Display the sentiment scores and predicted rating
         st.write("Sentiment Scores:")
-        st.write(user_input[['desc_1', 'sentiment_score_1', 'desc_2', 'sentiment_score_2', 'desc_3', 'sentiment_score_3']])
+        st.write(f"Description 1 Sentiment Score: {sentiment_score_1:.2f}")
+        st.write(f"Description 2 Sentiment Score: {sentiment_score_2:.2f}")
+        st.write(f"Description 3 Sentiment Score: {sentiment_score_3:.2f}")
         st.success(f"Predicted Rating for the provided descriptions: {predicted_rating[0]:.2f}")
-
+        
 # Prediction Page #################################################
 elif st.session_state.page_selection == "prediction":
     st.header("☕ Coffee Recommendation System")
