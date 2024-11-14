@@ -9,19 +9,19 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import requests
-import io
+
+from nltk.sentiment import SentimentIntensityAnalyzer
 import seaborn as sns
 from sklearn.tree import DecisionTreeRegressor
 from wordcloud import WordCloud
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
@@ -471,37 +471,49 @@ elif st.session_state.page_selection == "coffee_price_prediction":
 elif st.session_state.page_selection == "description_to_rating":
     st.header("📊 Description to Rating")
 
-    # Function to load GloVe vectors from a URL
-    @st.cache_resource
-    def load_glove_vectors_from_url(url):
-        glove_vectors = {}
-        response = requests.get(url)
-        if response.status_code == 200:
-            # Use io.StringIO to read the text data
-            data = io.StringIO(response.text)
-            for line in data:
-                split_line = line.split()
-                word = split_line[0]
-                vector = np.array(split_line[1:], dtype=float)
-                glove_vectors[word] = vector
-        else:
-            st.error("Failed to download GloVe vectors. Please check the URL.")
-            st.stop()  # Stop further execution if the download fails
-        return glove_vectors
+    # Initialize SentimentIntensityAnalyzer
+    sia = SentimentIntensityAnalyzer()
 
-    # URL for GloVe vectors (you can adjust the URL based on your needs)
-    glove_url = "https://nlp.stanford.edu/data/glove.6B.zip"  # This is a zip file link; you may need to extract it
-    glove_vectors = load_glove_vectors_from_url(glove_url)
+    # Define function to extract sentiment
+    def extract_sentiment(text):
+        sentiment_score = sia.polarity_scores(text)
+        return sentiment_score['compound']  # Compound score as overall sentiment
 
-    # Function to extract average GloVe vector for a given text
-    def get_average_vector(words, model):
-        word_vectors = []
-        for word in words:
-            if word in model:
-                word_vectors.append(model[word])
-        if len(word_vectors) == 0:
-            return np.zeros(100)
-        return np.mean(word_vectors, axis=0)
+    # Load your processed data (ensure 'processed_data.csv' is in the same directory)
+    @st.cache_data
+    def load_data():
+        return pd.read_csv('processed_data.csv')
+
+    # Load the processed data
+    df = load_data()
+
+    # Feature columns for training (using the three individual sentiment scores)
+    X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
+    y = df['rating']
+
+    # Split the data into training (70%) and testing (30%) sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    # Initialize the Random Forest Regressor
+    rf = RandomForestRegressor(random_state=42)
+
+    # Set up GridSearchCV for hyperparameter tuning
+    param_grid = {
+        'n_estimators': [50, 100, 200],
+        'max_depth': [None, 10, 20, 30],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4],
+        'max_features': ['auto', 'sqrt']
+    }
+
+    # Set up GridSearchCV
+    grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2, scoring='neg_mean_squared_error')
+
+    # Fit the model
+    grid_search.fit(X_train, y_train)
+
+    # Get the best model
+    best_model = grid_search.best_estimator_
 
     # Input fields for coffee descriptions
     st.subheader("Enter Coffee Descriptions")
@@ -510,73 +522,33 @@ elif st.session_state.page_selection == "description_to_rating":
     desc_3 = st.text_area("Description 3", "e.g., tastes like worms")
 
     if st.button("Predict Rating"):
-        # Preprocess the descriptions
-        example_df = pd.DataFrame({
+        # Create a DataFrame from user input
+        user_input = pd.DataFrame({
             'desc_1': [desc_1],
             'desc_2': [desc_2],
             'desc_3': [desc_3]
         })
 
-        # Preprocess the descriptions using the same method as the training data
-        example_df['desc_1_processed'] = example_df['desc_1'].apply(preprocess_text)
-        example_df['desc_2_processed'] = example_df['desc_2'].apply(preprocess_text)
-        example_df['desc_3_processed'] = example_df['desc_3'].apply(preprocess_text)
+        # Extract sentiment scores
+        user_input['sentiment_score_1'] = user_input['desc_1'].apply(extract_sentiment)
+        user_input['sentiment_score_2'] = user_input['desc_2'].apply(extract_sentiment)
+        user_input['sentiment_score_3'] = user_input['desc_3'].apply(extract_sentiment)
 
-        # Extract average GloVe vectors for the processed example descriptions
-        example_df['vector_1'] = example_df['desc_1_processed'].apply(lambda x: get_average_vector(x, glove_vectors))
-        example_df['vector_2'] = example_df['desc_2_processed'].apply(lambda x: get_average_vector(x, glove_vectors))
-        example_df['vector_3'] = example_df['desc_3_processed'].apply(lambda x: get_average_vector(x, glove_vectors))
+        # Predict the rating based on the sentiment scores
+        predicted_rating = best_model.predict(user_input[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']])
 
-        # Convert the list of vectors into separate DataFrame columns
-        vector_df_1 = pd.DataFrame(example_df['vector_1'].tolist(), index=example_df.index)
-        vector_df_2 = pd.DataFrame(example_df['vector_2'].tolist(), index=example_df.index)
-        vector_df_3 = pd.DataFrame(example_df['vector_3'].tolist(), index=example_df.index)
-
-        # Combine the vector DataFrames with the original DataFrame
-        example_df = pd.concat([example_df, vector_df_1.add_prefix('vec_1_'), vector_df_2.add_prefix('vec_2_'), vector_df_3.add_prefix('vec_3_')], axis=1)
-
-        # Prepare the feature columns for prediction
-        example_features = example_df[[f'vec_1_{i}' for i in range(100)] +
-                                       [f'vec_2_{i}' for i in range(100)] +
-                                       [f'vec_3_{i}' for i in range(100)]]
-
-        # Load the trained model (assuming you have saved it previously)
-        import joblib
-        best_model = joblib.load('best_random_forest_model.pkl')  # Adjust the path as needed
-
-        # Use the trained model to predict the rating based on the extracted features
-        predicted_rating = best_model.predict(example_features)
-
-        # Display the predicted rating
+        # Display the sentiment scores and predicted rating
+        st.write("Sentiment Scores:")
+        st.write(user_input[['desc_1', 'sentiment_score_1', 'desc_2', 'sentiment_score_2', 'desc_3', 'sentiment_score_3']])
         st.success(f"Predicted Rating for the provided descriptions: {predicted_rating[0]:.2f}")
 
-        # Extract average GloVe vectors for the processed example descriptions
-        example_df['vector_1'] = example_df['desc_1_processed'].apply(lambda x: get_average_vector(x, glove_vectors))
-        example_df['vector_2'] = example_df['desc_2_processed'].apply(lambda x: get_average_vector(x, glove_vectors))
-        example_df['vector_3'] = example_df['desc_3_processed'].apply(lambda x: get_average_vector(x, glove_vectors))
+    # If you want to display performance metrics, you can calculate and show them here
+    mae = mean_absolute_error(y_test, best_model.predict(X_test))
+    rmse = np.sqrt(mean_squared_error(y_test, best_model.predict(X_test)))
 
-        # Convert the list of vectors into separate DataFrame columns
-        vector_df_1 = pd.DataFrame(example_df['vector_1'].tolist(), index=example_df.index)
-        vector_df_2 = pd.DataFrame(example_df['vector_2'].tolist(), index=example_df.index)
-        vector_df_3 = pd.DataFrame(example_df['vector_3'].tolist(), index=example_df.index)
-
-        # Combine the vector DataFrames with the original DataFrame
-        example_df = pd.concat([example_df, vector_df_1.add_prefix('vec_1_'), vector_df_2.add_prefix('vec_2_'), vector_df_3.add_prefix('vec_3_')], axis=1)
-
-        # Prepare the feature columns for prediction
-        example_features = example_df[[f'vec_1_{i}' for i in range(100)] +
-                                       [f'vec_2_{i}' for i in range(100)] +
-                                       [f'vec_3_{i}' for i in range(100)]]
-
-        # Load the trained model (assuming you have saved it previously)
-        import joblib
-        best_model = joblib.load('best_random_forest_model.pkl')  # Adjust the path as needed
-
-        # Use the trained model to predict the rating based on the extracted features
-        predicted_rating = best_model.predict(example_features)
-
-        # Display the predicted rating
-        st.success(f"Predicted Rating for the provided descriptions: {predicted_rating[0]:.2f}")
+    st.sidebar.header("Model Performance Metrics")
+    st.sidebar.write(f"Mean Absolute Error: {mae:.2f}")
+    st.sidebar.write(f"Root Mean Squared Error: {rmse:.2f}")
 
 # Prediction Page #################################################
 elif st.session_state.page_selection == "prediction":
