@@ -551,7 +551,7 @@ elif st.session_state.page_selection == "description_to_rating":
 
         # Display the sentiment scores and predicted rating
         st.write("Sentiment Scores:")
-        st.write(user_input[['desc_1', 'sentiment_score_1', 'desc_2', 'sentiment_score_2', 'desc_3', 'sentiment_score_3']
+        st.write(user_input[['desc_1', 'sentiment_score_1', 'desc_2', 'sentiment_score_2', 'desc_3', 'sentiment_score_3']])
 
     # Feature columns for training (using the three individual sentiment scores)
     X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
