@@ -480,13 +480,78 @@ elif st.session_state.page_selection == "description_to_rating":
         sentiment_score = sia.polarity_scores(text)
         return sentiment_score['compound']  # Compound score as overall sentiment
 
-    # Load your processed data (ensure 'processed_data.csv' is in the same directory)
-    @st.cache_data
-    def load_data():
-        return pd.read_csv('processed_data.csv')
+    # Description to Rating Page ################################################
+elif st.session_state.page_selection == "description_to_rating":
+    st.header("📊 Description to Rating")
 
-    # Load the processed data
-    df = load_data()
+    # Initialize SentimentIntensityAnalyzer
+    sia = SentimentIntensityAnalyzer()
+
+    # Define function to extract sentiment
+    def extract_sentiment(text):
+        sentiment_score = sia.polarity_scores(text)
+        return sentiment_score['compound']  # Compound score as overall sentiment
+
+    # Access the cleaned data from session state
+    if 'df' not in st.session_state:
+        st.error("Please process the data in the Data Cleaning page first")
+        st.stop()
+    
+    df = st.session_state.df  # Use cleaned DataFrame stored in session state
+
+    # Feature columns for training (using the three individual sentiment scores)
+    X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
+    y = df['rating']
+
+    # Split the data into training (70%) and testing (30%) sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    # Initialize the Random Forest Regressor
+    rf = RandomForestRegressor(random_state=42)
+
+    # Set up GridSearchCV for hyperparameter tuning
+    param_grid = {
+        'n_estimators': [50, 100, 200],
+        'max_depth': [None, 10, 20, 30],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4],
+        'max_features': ['auto', 'sqrt']
+    }
+
+    # Set up GridSearchCV
+    grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2, scoring='neg_mean_squared_error')
+
+    # Fit the model
+    grid_search.fit(X_train, y_train)
+
+    # Get the best model
+    best_model = grid_search.best_estimator_
+
+    # Input fields for coffee descriptions
+    st.subheader("Enter Coffee Descriptions")
+    desc_1 = st.text_area("Description 1", "e.g., it was very bad")
+    desc_2 = st.text_area("Description 2", "e.g., it wasn't pleasant")
+    desc_3 = st.text_area("Description 3", "e.g., tastes like worms")
+
+    if st.button("Predict Rating"):
+        # Create a DataFrame from user input
+        user_input = pd.DataFrame({
+            'desc_1': [desc_1],
+            'desc_2': [desc_2],
+            'desc_3': [desc_3]
+        })
+
+        # Extract sentiment scores
+        user_input['sentiment_score_1'] = user_input['desc_1'].apply(extract_sentiment)
+        user_input['sentiment_score_2'] = user_input['desc_2'].apply(extract_sentiment)
+        user_input['sentiment_score_3'] = user_input['desc_3'].apply(extract_sentiment)
+
+        # Predict the rating based on the sentiment scores
+        predicted_rating = best_model.predict(user_input[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']])
+
+        # Display the sentiment scores and predicted rating
+        st.write("Sentiment Scores:")
+        st.write(user_input[['desc_1', 'sentiment_score_1', 'desc_2', 'sentiment_score_2', 'desc_3', 'sentiment_score_3']
 
     # Feature columns for training (using the three individual sentiment scores)
     X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
