@@ -523,7 +523,7 @@ elif st.session_state.page_selection == "description_to_rating":
         desc_3 = existing_desc['desc_3']
 
         # Input fields for new coffee descriptions
-        st.subheader("Add New Coffee Descriptions")
+        st.subheader("Describe This Coffee")
         new_desc_1 = st.text_area("New Description 1", "")
         new_desc_2 = st.text_area("New Description 2", "")
         new_desc_3 = st.text_area("New Description 3", "")
