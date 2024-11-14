@@ -633,18 +633,25 @@ elif st.session_state.page_selection == "prediction":
         max_rating = 98
         df['rescaled_sentiment'] = min_rating + (df['average_sentiment'] * (max_rating - min_rating))
 
-        # Hexbin plot for rescaled sentiment scores vs ratings
-        plt.figure(figsize=(8, 6))
-        plt.hexbin(df['rescaled_sentiment'], df['rating'], gridsize=30, cmap='Blues')
-
-        # Add color bar and labels
-        plt.colorbar(label='Frequency')
-        plt.title('Hexbin Plot of Rescaled Sentiment Scores vs Ratings')
-        plt.xlabel('Sentiment Scores')
-        plt.ylabel('Ratings')
+        # Create hexbin plot using Plotly
+        hexbin_fig = go.Figure(data=go.Histogram2d(
+            x=df['rescaled_sentiment'],
+            y=df['rating'],
+            colorscale='Blues',
+            colorbar=dict(title='Frequency'),
+            histfunc='count',
+        ))
+        
+        # Update layout for better visualization
+        hexbin_fig.update_layout(
+            title='Hexbin Plot of Sentiment Scores vs Ratings',
+            xaxis_title='Sentiment Scores',
+            yaxis_title='Ratings',
+            plot_bgcolor='rgba(0,0,0,0)',
+        )
 
         # Show the plot in Streamlit
-        st.pyplot(plt)
+        st.plotly_chart(hexbin_fig, use_container_width=True)
 
         st.write("""
         The hexbin plot shows the relationship between "Sentiment Scores" and "Ratings." The plot suggests a positive correlation between "Rescaled Sentiment Scores" and "Ratings." As the sentiment scores increase, the ratings tend to also increase.
