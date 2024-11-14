@@ -523,7 +523,7 @@ elif st.session_state.page_selection == "description_to_rating":
     best_model = grid_search.best_estimator_
 
     # Input field for coffee name
-    coffee_names = df['coffee_name'].unique()  # Assuming 'coffee_name' is the column with coffee names
+    coffee_names = df['name'].unique()  # Assuming 'coffee_name' is the column with coffee names
     selected_coffee = st.selectbox("Select Coffee Name", coffee_names)
 
     # Get the existing descriptions for the selected coffee
