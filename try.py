@@ -468,7 +468,7 @@ elif st.session_state.page_selection == "coffee_price_prediction":
     for i, score in enumerate(rf_importance):
         st.write(f"Feature: {X.columns[i]}, Score: {score:.4f}")
 
-    # Description to Rating Page ################################################
+# Description to Rating Page ################################################
 elif st.session_state.page_selection == "description_to_rating":
     st.header("📊 Description to Rating")
 
@@ -522,27 +522,35 @@ elif st.session_state.page_selection == "description_to_rating":
     # Get the best model
     best_model = grid_search.best_estimator_
 
-    # Input fields for coffee descriptions
-    st.subheader("Enter Coffee Descriptions")
-    desc_1 = st.text_area("Description 1", "e.g., it was very bad")
-    desc_2 = st.text_area("Description 2", "e.g., it wasn't pleasant")
-    desc_3 = st.text_area("Description 3", "e.g., tastes like worms")
+    # Input field for coffee name
+    coffee_names = df['coffee_name'].unique()  # Assuming 'coffee_name' is the column with coffee names
+    selected_coffee = st.selectbox("Select Coffee Name", coffee_names)
 
-    if st.button("Predict Rating"):
-        # Create a DataFrame from user input
-        user_input = pd.DataFrame({
-            'desc_1': [desc_1],
-            'desc_2': [desc_2],
-            'desc_3': [desc_3]
-        })
+    # Get the existing descriptions for the selected coffee
+    existing_desc = df[df['coffee_name'] == selected_coffee].iloc[0]
+    desc_1 = existing_desc['desc_1']
+    desc_2 = existing_desc['desc_2']
+    desc_3 = existing_desc['desc_3']
 
-        # Extract sentiment scores for user input
-        user_input['sentiment_score_1'] = user_input['desc_1'].apply(extract_sentiment)
-        user_input['sentiment_score_2'] = user_input['desc_2'].apply(extract_sentiment)
-        user_input['sentiment_score_3'] = user_input['desc_3'].apply(extract_sentiment)
+    # Input fields for new coffee descriptions
+    st.subheader("Add New Coffee Descriptions")
+    new_desc_1 = st.text_area("New Description 1", "")
+    new_desc_2 = st.text_area("New Description 2", "")
+    new_desc_3 = st.text_area("New Description 3", "")
 
-        # Predict the rating based on the sentiment scores
-        predicted_rating = best_model.predict(user_input[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']])
+    if st.button("Add Descriptions"):
+        # Append the new descriptions to the existing ones
+        updated_desc_1 = f"{desc_1} {new_desc_1}".strip()
+        updated_desc_2 = f"{desc_2} {new_desc_2}".strip()
+        updated_desc_3 = f"{desc_3} {new_desc_3}".strip()
+
+        # Update the DataFrame with the new descriptions
+        df.loc[df['coffee_name'] == selected_coffee, ['desc_1', 'desc_2', 'desc_3']] = updated_desc_1, updated_desc_2, updated_desc_3
+        
+        # Recalculate sentiment scores for the updated descriptions
+        df.loc[df['coffee_name'] == selected_coffee, 'sentiment_score_1'] = extract_sentiment(updated_desc_1)
+        df.loc[df['coffee_name'] == selected_coffee, 'sentiment_score_2'] = extract_sentiment(updated_desc_2)
+        df.loc[df['coffee_name'] == selected_coffee, 'sentiment_score_3'] = extract_sentiment(updated_desc_3)
 
         # Display the sentiment scores and predicted rating
         st.write("Sentiment Scores:")
