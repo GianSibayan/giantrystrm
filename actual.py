@@ -89,6 +89,9 @@ with st.sidebar:
     if st.button("Machine Learning", use_container_width=True, on_click=set_page_selection, args=('machine_learning',)): 
         st.session_state.page_selection = "machine_learning"
 
+    if st.button("Description to Rating", use_container_width=True, on_click=set_page_selection, args=('description_to_rating',)):
+        st.session_state.page_selection = "description_to_rating"
+    
     if st.button("Prediction", use_container_width=True, on_click=set_page_selection, args=('prediction',)): 
         st.session_state.page_selection = "prediction"
 
@@ -387,7 +390,174 @@ elif st.session_state.page_selection == "machine_learning":
 
     # Your content for the MACHINE LEARNING page goes here
 
-###################################################################      
+###################################################################
+
+# Description to Rating Page ################################################
+elif st.session_state.page_selection == "description_to_rating":
+    st.header("📊 Description to Rating")
+
+    # Initialize SentimentIntensityAnalyzer
+    sia = SentimentIntensityAnalyzer()
+
+    # Define function to extract sentiment
+    def extract_sentiment(text):
+        sentiment_score = sia.polarity_scores(text)
+        return sentiment_score['compound']  # Compound score as overall sentiment
+
+    # Access the cleaned data from session state
+    if 'df' not in st.session_state:
+        st.error("Please process the data in the Data Cleaning page first")
+        st.stop()
+
+    df = st.session_state.df  # Use cleaned DataFrame stored in session state
+
+    # Add tabs for different features
+    tab1, tab2 = st.tabs(["Describe to Rate The Coffee", "Model Insights"])
+
+    with tab1:
+        # Check if sentiment score columns exist; if not, create them
+        if not all(col in df.columns for col in ['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']):
+            # Create sentiment score columns based on existing descriptions
+            df['sentiment_score_1'] = df['desc_1'].apply(extract_sentiment)
+            df['sentiment_score_2'] = df['desc_2'].apply(extract_sentiment)
+            df['sentiment_score_3'] = df['desc_3'].apply(extract_sentiment)
+
+        # Feature columns for training (using the three individual sentiment scores)
+        X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
+        y = df['rating']
+
+        # Split the data into training (70%) and testing (30%) sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+        # Initialize the Random Forest Regressor
+        rf = RandomForestRegressor(random_state=42)
+
+        # Fit the model
+        rf.fit(X_train, y_train)
+
+        # Input field for coffee name
+        coffee_names = df['name'].unique() 
+        selected_coffee = st.selectbox("Select Coffee Name", coffee_names)
+
+        # Get the existing descriptions for the selected coffee
+        existing_desc = df[df['name'] == selected_coffee].iloc[0]
+        desc_1 = existing_desc['desc_1']
+        desc_2 = existing_desc['desc_2']
+        desc_3 = existing_desc['desc_3']
+
+        # Input fields for new coffee descriptions
+        st.subheader("Describe This Coffee")
+        new_desc_1 = st.text_area("New Description 1", "")
+        new_desc_2 = st.text_area("New Description 2", "")
+        new_desc_3 = st.text_area("New Description 3", "")
+
+        if st.button("Predict Rating"):
+            # Calculate sentiment scores for the new descriptions
+            sentiment_score_1 = extract_sentiment(new_desc_1)
+            sentiment_score_2 = extract_sentiment(new_desc_2)
+            sentiment_score_3 = extract_sentiment(new_desc_3)
+
+            # Prepare the input for prediction
+            new_data = pd.DataFrame([[sentiment_score_1, sentiment_score_2, sentiment_score_3]], 
+                                    columns=['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3'])
+
+            # Predict the new rating
+            predicted_rating = rf.predict(new_data)
+
+            # Display the sentiment scores and predicted rating
+            st.write("Sentiment Scores:")
+            st.write(f"Description 1 Sentiment Score: {sentiment_score_1:.2f}")
+            st.write(f"Description 2 Sentiment Score: {sentiment_score_2:.2f}")
+            st.write(f"Description 3 Sentiment Score: {sentiment_score_3:.2f}")
+            st.success(f"Predicted Rating for the provided descriptions: {predicted_rating[0]:.2f}")
+
+    with tab2:
+        st.subheader("Feature Importance Analysis")
+        
+        # Calculate the average sentiment score for each coffee description (mean of the 3 sentiment scores)
+        df['average_sentiment'] = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']].mean(axis=1)
+
+        # Rescale sentiment scores from range [0, 1] to range [84, 98]
+        min_rating = 84
+        max_rating = 98
+        df['rescaled_sentiment'] = min_rating + (df['average_sentiment'] * (max_rating - min_rating))
+
+        # Create hexbin plot using Plotly
+        hexbin_fig = go.Figure(data=go.Histogram2d(
+            x=df['rescaled_sentiment'],
+            y=df['rating'],
+            colorscale='Blues',
+            colorbar=dict(title='Frequency'),
+            histfunc='count',
+        ))
+        
+        # Update layout for better visualization
+        hexbin_fig.update_layout(
+            title='Hexbin Plot of Sentiment Scores vs Ratings',
+            xaxis_title='Sentiment Scores',
+            yaxis_title='Ratings',
+            plot_bgcolor='rgba(0,0,0,0)',
+        )
+
+        # Show the plot in Streamlit
+        st.plotly_chart(hexbin_fig, use_container_width=True)
+
+        st.write("""
+        The hexbin plot shows the relationship between "Sentiment Scores" and "Ratings." The plot suggests a positive correlation between "Rescaled Sentiment Scores" and "Ratings." As the sentiment scores increase, the ratings tend to also increase.
+        """)
+
+        # Prepare data for scatter plot
+        X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
+        y = df['rating']
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+        # Initialize and fit the Random Forest Regressor
+        rf = RandomForestRegressor(random_state=42)
+        rf.fit(X_train, y_train)
+
+        # Make predictions
+        y_pred = rf.predict(X_test)
+
+        # Create scatter plot using Plotly Express
+        scatter_fig = px.scatter(
+            df,
+            x='rescaled_sentiment',
+            y='rating',
+            title='Scatter Plot of Rescaled Sentiment Scores vs Ratings',
+            labels={'rescaled_sentiment': 'Rescaled Sentiment Scores', 'rating': 'Ratings'},
+            color='rating',  # Optional: color by rating
+            hover_data=['rescaled_sentiment', 'rating']  # Optional: show data on hover
+        )
+        
+        # Update layout for better visualization
+        scatter_fig.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+        )
+        
+        # Show the plot in Streamlit
+        st.plotly_chart(scatter_fig, use_container_width=True)
+
+        # Calculate and display MAE and RMSE
+        mae = np.mean(np.abs(y_test - y_pred))
+        rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
+
+        st.write(f"The model's Mean Absolute Error (MAE) is 1.1728734991620522 and the Root Mean Squared Error (RMSE) is 1.5956235031050126. These metrics indicate the average magnitude of the model's prediction errors. A lower MAE suggests smaller average errors, while a lower RMSE suggests smaller average squared errors, with more weight given to larger errors.")
+
+        st.markdown("""
+        ### Understanding the Rating Prediction Model
+        
+        This rating prediction model utilizes multiple features derived from coffee descriptions to estimate the overall rating:
+        
+        1. **Description Sentiment Analysis**: Analyzes the sentiment of the coffee descriptions using Natural Language Processing (NLP) techniques to quantify the emotional tone and context.
+        
+        2. **Sentiment Scores**: Incorporates individual sentiment scores from multiple descriptions to capture different perspectives on the coffee's characteristics.
+        
+        3. **Model Training**: Utilizes a Random Forest Regressor to learn from historical data, identifying patterns and relationships between sentiment scores and actual ratings.
+        
+        The bar chart above represents the contribution of each sentiment score to the rating prediction.
+        """)
+
+
 # Prediction Page #################################################
 elif st.session_state.page_selection == "prediction":
     st.header("☕ Coffee Recommendation System")
@@ -453,61 +623,7 @@ elif st.session_state.page_selection == "prediction":
                 st.write(f"📍 Origin: {coffee_info['origin_1']}")
                 st.write(f"💰 Price: ${coffee_info['100g_USD']:.2f}/100g")
                 st.write(f"⭐ Rating: {coffee_info['rating']}")
-           
-            # Initialize SentimentIntensityAnalyzer
-            sia = SentimentIntensityAnalyzer()
 
-            # Define function to extract sentiment
-            def extract_sentiment(text):
-                sentiment_score = sia.polarity_scores(text)
-                return sentiment_score['compound']  # Compound score as overall sentiment
-
-            # Check if sentiment score columns exist; if not, create them
-            if not all(col in df.columns for col in ['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']):
-                # Create sentiment score columns based on existing descriptions
-                df['sentiment_score_1'] = df['desc_1'].apply(extract_sentiment)
-                df['sentiment_score_2'] = df['desc_2'].apply(extract_sentiment)
-                df['sentiment_score_3'] = df['desc_3'].apply(extract_sentiment)
-
-            # Feature columns for training (using the three individual sentiment scores)
-            X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
-            y = df['rating']
-
-            # Split the data into training (70%) and testing (30%) sets
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-            # Initialize the Random Forest Regressor
-            rf = RandomForestRegressor(random_state=42)
-
-            # Fit the model
-            rf.fit(X_train, y_train)
-
-            # Input fields for new coffee descriptions
-            st.subheader("Describe This Coffee")
-            new_desc_1 = st.text_area("New Description 1", "")
-            new_desc_2 = st.text_area("New Description 2", "")
-            new_desc_3 = st.text_area("New Description 3", "")
-
-            if st.button("Predict Rating"):
-                        # Calculate sentiment scores for the new descriptions
-                sentiment_score_1 = extract_sentiment(new_desc_1)
-                sentiment_score_2 = extract_sentiment(new_desc_2)
-                sentiment_score_3 = extract_sentiment(new_desc_3)
-        
-                # Prepare the input for prediction
-                new_data = pd.DataFrame([[sentiment_score_1, sentiment_score_2, sentiment_score_3]], 
-                                         columns=['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3'])
-        
-                # Predict the new rating
-                predicted_rating = rf.predict(new_data)
-        
-                # Display the sentiment scores and predicted rating
-                st.write("Sentiment Scores:")
-                st.write(f"Description 1 Sentiment Score: {sentiment_score_1:.2f}")
-                st.write(f"Description 2 Sentiment Score: {sentiment_score_2:.2f}")
-                st.write(f"Description 3 Sentiment Score: {sentiment_score_3:.2f}")
-                st.success(f"Predicted Rating for the provided descriptions: {predicted_rating[0]:.2f}")
-                
         with col2:
             if selected_coffee:
                 st.subheader("Recommended Coffees")
@@ -622,87 +738,6 @@ elif st.session_state.page_selection == "prediction":
         """)
 
 
-        
-        #Feature Importance for Description to Rating
-        st.subheader("Description to Rating Feature Importance")
-        
-        # Calculate the average sentiment score for each coffee description (mean of the 3 sentiment scores)
-        df['average_sentiment'] = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']].mean(axis=1)
-
-        # Rescale sentiment scores from range [0, 1] to range [84, 98]
-        min_rating = 84
-        max_rating = 98
-        df['rescaled_sentiment'] = min_rating + (df['average_sentiment'] * (max_rating - min_rating))
-
-        # Create hexbin plot using Plotly
-        hexbin_fig = go.Figure(data=go.Histogram2d(
-            x=df['rescaled_sentiment'],
-            y=df['rating'],
-            colorscale='Blues',
-            colorbar=dict(title='Frequency'),
-            histfunc='count',
-        ))
-        
-        # Update layout for better visualization
-        hexbin_fig.update_layout(
-            title='Hexbin Plot of Sentiment Scores vs Ratings',
-            xaxis_title='Sentiment Scores',
-            yaxis_title='Ratings',
-            plot_bgcolor='rgba(0,0,0,0)',
-        )
-
-        # Show the plot in Streamlit
-        st.plotly_chart(hexbin_fig, use_container_width=True)
-
-        st.write("""
-        The hexbin plot shows the relationship between "Sentiment Scores" and "Ratings." The plot suggests a positive correlation between "Rescaled Sentiment Scores" and "Ratings." As the sentiment scores increase, the ratings tend to also increase.
-        """)
-
-        # Prepare data for scatter plot
-        X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
-        y = df['rating']
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-        # Initialize and fit the Random Forest Regressor
-        rf = RandomForestRegressor(random_state=42)
-        rf.fit(X_train, y_train)
-
-        # Make predictions
-        y_pred = rf.predict(X_test)
-
-        # Scatter plot of actual vs predicted ratings
-        plt.figure(figsize=(8, 6))
-        plt.scatter(y_test, y_pred, alpha=0.5)
-        plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')  # Line of perfect prediction
-        plt.xlabel("Actual Ratings")
-        plt.ylabel("Predicted Ratings")
-        plt.title("Actual vs Predicted Ratings")
-        plt.xlim([min(y_test), max(y_test)])  # Set x-axis limits to the range of actual ratings
-        plt.ylim([min(y_test), max(y_test)])  # Set y-axis limits to the range of predicted ratings
-        plt.grid()
-
-        # Show the scatter plot in Streamlit
-        st.pyplot(plt)
-
-        # Calculate and display MAE and RMSE
-        mae = np.mean(np.abs(y_test - y_pred))
-        rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
-
-        st.write(f"The model's Mean Absolute Error (MAE) is 1.1728734991620522 and the Root Mean Squared Error (RMSE) is 1.5956235031050126. These metrics indicate the average magnitude of the model's prediction errors. A lower MAE suggests smaller average errors, while a lower RMSE suggests smaller average squared errors, with more weight given to larger errors.")
-
-        st.markdown("""
-        ### Understanding the Rating Prediction Model
-        
-        This rating prediction model utilizes multiple features derived from coffee descriptions to estimate the overall rating:
-        
-        1. **Description Sentiment Analysis**: Analyzes the sentiment of the coffee descriptions using Natural Language Processing (NLP) techniques to quantify the emotional tone and context.
-        
-        2. **Sentiment Scores**: Incorporates individual sentiment scores from multiple descriptions to capture different perspectives on the coffee's characteristics.
-        
-        3. **Model Training**: Utilizes a Random Forest Regressor to learn from historical data, identifying patterns and relationships between sentiment scores and actual ratings.
-        
-        The bar chart above represents the contribution of each sentiment score to the rating prediction.
-        """)
 
 
     # Your content for the PREDICTION page goes here
