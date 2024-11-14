@@ -484,62 +484,15 @@ elif st.session_state.page_selection == "description_to_rating":
     if 'df' not in st.session_state:
         st.error("Please process the data in the Data Cleaning page first")
         st.stop()
-    
+
     df = st.session_state.df  # Use cleaned DataFrame stored in session state
 
-    # Feature columns for training (using the three individual sentiment scores)
-    X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
-    y = df['rating']
-
-    # Split the data into training (70%) and testing (30%) sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-    # Initialize the Random Forest Regressor
-    rf = RandomForestRegressor(random_state=42)
-
-    # Set up GridSearchCV for hyperparameter tuning
-    param_grid = {
-        'n_estimators': [50, 100, 200],
-        'max_depth': [None, 10, 20, 30],
-        'min_samples_split': [2, 5, 10],
-        'min_samples_leaf': [1, 2, 4],
-        'max_features': ['auto', 'sqrt']
-    }
-
-    # Set up GridSearchCV
-    grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2, scoring='neg_mean_squared_error')
-
-    # Fit the model
-    grid_search.fit(X_train, y_train)
-
-    # Get the best model
-    best_model = grid_search.best_estimator_
-
-    # Input fields for coffee descriptions
-    st.subheader("Enter Coffee Descriptions")
-    desc_1 = st.text_area("Description 1", "e.g., it was very bad")
-    desc_2 = st.text_area("Description 2", "e.g., it wasn't pleasant")
-    desc_3 = st.text_area("Description 3", "e.g., tastes like worms")
-
-    if st.button("Predict Rating"):
-        # Create a DataFrame from user input
-        user_input = pd.DataFrame({
-            'desc_1': [desc_1],
-            'desc_2': [desc_2],
-            'desc_3': [desc_3]
-        })
-
-        # Extract sentiment scores
-        user_input['sentiment_score_1'] = user_input['desc_1'].apply(extract_sentiment)
-        user_input['sentiment_score_2'] = user_input['desc_2'].apply(extract_sentiment)
-        user_input['sentiment_score_3'] = user_input['desc_3'].apply(extract_sentiment)
-
-        # Predict the rating based on the sentiment scores
-        predicted_rating = best_model.predict(user_input[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']])
-
-        # Display the sentiment scores and predicted rating
-        st.write("Sentiment Scores:")
-        st.write(user_input[['desc_1', 'sentiment_score_1', 'desc_2', 'sentiment_score_2', 'desc_3', 'sentiment_score_3']])
+    # Check if sentiment score columns exist; if not, create them
+    if not all(col in df.columns for col in ['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']):
+        # Create sentiment score columns based on existing descriptions
+        df['sentiment_score_1'] = df['desc_1'].apply(extract_sentiment)
+        df['sentiment_score_2'] = df['desc_2'].apply(extract_sentiment)
+        df['sentiment_score_3'] = df['desc_3'].apply(extract_sentiment)
 
     # Feature columns for training (using the three individual sentiment scores)
     X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
@@ -583,7 +536,7 @@ elif st.session_state.page_selection == "description_to_rating":
             'desc_3': [desc_3]
         })
 
-        # Extract sentiment scores
+        # Extract sentiment scores for user input
         user_input['sentiment_score_1'] = user_input['desc_1'].apply(extract_sentiment)
         user_input['sentiment_score_2'] = user_input['desc_2'].apply(extract_sentiment)
         user_input['sentiment_score_3'] = user_input['desc_3'].apply(extract_sentiment)
@@ -595,14 +548,6 @@ elif st.session_state.page_selection == "description_to_rating":
         st.write("Sentiment Scores:")
         st.write(user_input[['desc_1', 'sentiment_score_1', 'desc_2', 'sentiment_score_2', 'desc_3', 'sentiment_score_3']])
         st.success(f"Predicted Rating for the provided descriptions: {predicted_rating[0]:.2f}")
-
-    # If you want to display performance metrics, you can calculate and show them here
-    mae = mean_absolute_error(y_test, best_model.predict(X_test))
-    rmse = np.sqrt(mean_squared_error(y_test, best_model.predict(X_test)))
-
-    st.sidebar.header("Model Performance Metrics")
-    st.sidebar.write(f"Mean Absolute Error: {mae:.2f}")
-    st.sidebar.write(f"Root Mean Squared Error: {rmse:.2f}")
 
 # Prediction Page #################################################
 elif st.session_state.page_selection == "prediction":
