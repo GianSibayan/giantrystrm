@@ -598,19 +598,24 @@ elif st.session_state.page_selection == "description_to_rating":
         # Make predictions
         y_pred = rf.predict(X_test)
 
-        # Scatter plot of actual vs predicted ratings
-        plt.figure(figsize=(8, 6))
-        plt.scatter(y_test, y_pred, alpha=0.5)
-        plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')  # Line of perfect prediction
-        plt.xlabel("Actual Ratings")
-        plt.ylabel("Predicted Ratings")
-        plt.title("Actual vs Predicted Ratings")
-        plt.xlim([min(y_test), max(y_test)])  # Set x-axis limits to the range of actual ratings
-        plt.ylim([min(y_test), max(y_test)])  # Set y-axis limits to the range of predicted ratings
-        plt.grid()
-
-        # Show the scatter plot in Streamlit
-        st.pyplot(plt)
+        # Create scatter plot using Plotly Express
+        scatter_fig = px.scatter(
+            df,
+            x='rescaled_sentiment',
+            y='rating',
+            title='Scatter Plot of Rescaled Sentiment Scores vs Ratings',
+            labels={'rescaled_sentiment': 'Rescaled Sentiment Scores', 'rating': 'Ratings'},
+            color='rating',  # Optional: color by rating
+            hover_data=['rescaled_sentiment', 'rating']  # Optional: show data on hover
+        )
+        
+        # Update layout for better visualization
+        scatter_fig.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+        )
+        
+        # Show the plot in Streamlit
+        st.plotly_chart(scatter_fig, use_container_width=True)
 
         # Calculate and display MAE and RMSE
         mae = np.mean(np.abs(y_test - y_pred))
