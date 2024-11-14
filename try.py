@@ -39,6 +39,7 @@ from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 
 # Download NLTK resources
+nltk.download('vade_lexicon')
 nltk.download('punkt')
 nltk.download('punkt_tab')
 nltk.download('stopwords')
