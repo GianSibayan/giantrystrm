@@ -493,61 +493,61 @@ elif st.session_state.page_selection == "description_to_rating":
 
     with tab1:
          
-    # Check if sentiment score columns exist; if not, create them
-    if not all(col in df.columns for col in ['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']):
-        # Create sentiment score columns based on existing descriptions
-        df['sentiment_score_1'] = df['desc_1'].apply(extract_sentiment)
-        df['sentiment_score_2'] = df['desc_2'].apply(extract_sentiment)
-        df['sentiment_score_3'] = df['desc_3'].apply(extract_sentiment)
-
-    # Feature columns for training (using the three individual sentiment scores)
-    X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
-    y = df['rating']
-
-    # Split the data into training (70%) and testing (30%) sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-    # Initialize the Random Forest Regressor
-    rf = RandomForestRegressor(random_state=42)
-
-    # Fit the model
-    rf.fit(X_train, y_train)
-
-    # Input field for coffee name
-    coffee_names = df['name'].unique() 
-    selected_coffee = st.selectbox("Select Coffee Name", coffee_names)
-
-    # Get the existing descriptions for the selected coffee
-    existing_desc = df[df['name'] == selected_coffee].iloc[0]
-    desc_1 = existing_desc['desc_1']
-    desc_2 = existing_desc['desc_2']
-    desc_3 = existing_desc['desc_3']
-
-    # Input fields for new coffee descriptions
-    st.subheader("Add New Coffee Descriptions")
-    new_desc_1 = st.text_area("New Description 1", "")
-    new_desc_2 = st.text_area("New Description 2", "")
-    new_desc_3 = st.text_area("New Description 3", "")
-
-    if st.button("Predict Rating"):
-        # Calculate sentiment scores for the new descriptions
-        sentiment_score_1 = extract_sentiment(new_desc_1)
-        sentiment_score_2 = extract_sentiment(new_desc_2)
-        sentiment_score_3 = extract_sentiment(new_desc_3)
-
-        # Prepare the input for prediction
-        new_data = pd.DataFrame([[sentiment_score_1, sentiment_score_2, sentiment_score_3]], 
-                                 columns=['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3'])
-
-        # Predict the new rating
-        predicted_rating = rf.predict(new_data)
-
-        # Display the sentiment scores and predicted rating
-        st.write("Sentiment Scores:")
-        st.write(f"Description 1 Sentiment Score: {sentiment_score_1:.2f}")
-        st.write(f"Description 2 Sentiment Score: {sentiment_score_2:.2f}")
-        st.write(f"Description 3 Sentiment Score: {sentiment_score_3:.2f}")
-        st.success(f"Predicted Rating for the provided descriptions: {predicted_rating[0]:.2f}")
+        # Check if sentiment score columns exist; if not, create them
+        if not all(col in df.columns for col in ['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']):
+            # Create sentiment score columns based on existing descriptions
+            df['sentiment_score_1'] = df['desc_1'].apply(extract_sentiment)
+            df['sentiment_score_2'] = df['desc_2'].apply(extract_sentiment)
+            df['sentiment_score_3'] = df['desc_3'].apply(extract_sentiment)
+    
+        # Feature columns for training (using the three individual sentiment scores)
+        X = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']]
+        y = df['rating']
+    
+        # Split the data into training (70%) and testing (30%) sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    
+        # Initialize the Random Forest Regressor
+        rf = RandomForestRegressor(random_state=42)
+    
+        # Fit the model
+        rf.fit(X_train, y_train)
+    
+        # Input field for coffee name
+        coffee_names = df['name'].unique() 
+        selected_coffee = st.selectbox("Select Coffee Name", coffee_names)
+    
+        # Get the existing descriptions for the selected coffee
+        existing_desc = df[df['name'] == selected_coffee].iloc[0]
+        desc_1 = existing_desc['desc_1']
+        desc_2 = existing_desc['desc_2']
+        desc_3 = existing_desc['desc_3']
+    
+        # Input fields for new coffee descriptions
+        st.subheader("Add New Coffee Descriptions")
+        new_desc_1 = st.text_area("New Description 1", "")
+        new_desc_2 = st.text_area("New Description 2", "")
+        new_desc_3 = st.text_area("New Description 3", "")
+    
+        if st.button("Predict Rating"):
+            # Calculate sentiment scores for the new descriptions
+            sentiment_score_1 = extract_sentiment(new_desc_1)
+            sentiment_score_2 = extract_sentiment(new_desc_2)
+            sentiment_score_3 = extract_sentiment(new_desc_3)
+    
+            # Prepare the input for prediction
+            new_data = pd.DataFrame([[sentiment_score_1, sentiment_score_2, sentiment_score_3]], 
+                                     columns=['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3'])
+    
+            # Predict the new rating
+            predicted_rating = rf.predict(new_data)
+    
+            # Display the sentiment scores and predicted rating
+            st.write("Sentiment Scores:")
+            st.write(f"Description 1 Sentiment Score: {sentiment_score_1:.2f}")
+            st.write(f"Description 2 Sentiment Score: {sentiment_score_2:.2f}")
+            st.write(f"Description 3 Sentiment Score: {sentiment_score_3:.2f}")
+            st.success(f"Predicted Rating for the provided descriptions: {predicted_rating[0]:.2f}")
 
 
     with tab2:
