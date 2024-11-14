@@ -620,7 +620,11 @@ elif st.session_state.page_selection == "prediction":
         Higher bars indicate more important features in determining coffee similarity.
         """)
 
+
+        
         #Feature Importance for Description to Rating
+        st.subheader("Description to Rating Feature Importance")
+        
         # Calculate the average sentiment score for each coffee description (mean of the 3 sentiment scores)
         df['average_sentiment'] = df[['sentiment_score_1', 'sentiment_score_2', 'sentiment_score_3']].mean(axis=1)
 
