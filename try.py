@@ -468,18 +468,6 @@ elif st.session_state.page_selection == "coffee_price_prediction":
     for i, score in enumerate(rf_importance):
         st.write(f"Feature: {X.columns[i]}, Score: {score:.4f}")
 
-# Description to Rating Page ################################################
-elif st.session_state.page_selection == "description_to_rating":
-    st.header("📊 Description to Rating")
-
-    # Initialize SentimentIntensityAnalyzer
-    sia = SentimentIntensityAnalyzer()
-
-    # Define function to extract sentiment
-    def extract_sentiment(text):
-        sentiment_score = sia.polarity_scores(text)
-        return sentiment_score['compound']  # Compound score as overall sentiment
-
     # Description to Rating Page ################################################
 elif st.session_state.page_selection == "description_to_rating":
     st.header("📊 Description to Rating")
