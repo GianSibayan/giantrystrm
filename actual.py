@@ -237,162 +237,144 @@ elif st.session_state.page_selection == "data_cleaning":
     st.subheader("Initial Dataset", divider=True)
     st.write(df_initial.head())
 
-    # Make a copy of the dataset before pre-processing
+    # Making a copy before pre-processing
     df = df_initial.copy()
 
     # Step 1: Removing Null Values and Duplicates
     st.subheader("Removing Null Values and Duplicates", divider=True)
     st.markdown("""
-    In this step, we will identify and remove any rows with missing values and duplicate entries. 
-    Handling missing and duplicate data is essential to improve the accuracy of our analysis.
+    In this step, we will identify and remove any missing values, as these can lead to inaccurate analyses. 
+    We’ll also check for duplicate rows to ensure the dataset’s integrity.
     """)
 
     # Calculate the percentage of missing values
-    missing_values = round((df.isnull().sum()/df.shape[0])*100, 2)
-    st.write("Percentage of Missing Values:")
+    missing_values = round((df.isnull().sum() / df.shape[0]) * 100, 2)
+    st.write("Percentage of Missing Values in Each Column:")
     st.write(missing_values)
 
-    # Drop rows with missing values
-    df = df.dropna()
-    st.write("Missing values after dropping NA:")
-    st.write(round((df.isnull().sum()/df.shape[0])*100, 2))
+    # Code for dropping missing values
+    st.code("""
+df = df.dropna()
+    """, language='python')
 
-    # Check for duplicate rows
+    # Check for duplicates
     duplicate_rows = df[df.duplicated()]
     num_duplicate_rows = len(duplicate_rows)
     st.write(f"Number of duplicate rows: {num_duplicate_rows}")
 
-    # Drop duplicate rows
-    df = df.drop_duplicates()
-    st.write(f"Duplicate rows have been removed. Remaining rows: {df.shape[0]}")
+    # Code for removing duplicates
+    st.code("""
+df = df.drop_duplicates()
+    """, language='python')
+
+    st.write(f"Duplicate rows removed. Remaining rows: {df.shape[0]}")
 
     # Step 2: Removing Outliers
     st.subheader("Removing Outliers", divider=True)
     st.markdown("""
-    Outliers can skew our analysis, especially in numerical fields. We’ll use the 
-    Interquartile Range (IQR) method to identify and remove outliers from the `100g_USD` (price) and `rating` columns.
+    Outliers can significantly skew analysis results. We’ll use the Interquartile Range (IQR) method to identify 
+    and remove outliers in the `100g_USD` (price per 100g) and `rating` columns.
     """)
 
-    # Price Outliers Visualization
-    st.markdown("**Price Column (100g_USD) Distribution:**")
+    # Visualize the distribution of prices
     plt.figure(figsize=(10, 4))
     plt.boxplot(df['100g_USD'], vert=False)
+    plt.ylabel('Price Column (100g_USD)')
     plt.xlabel('Price Values')
     plt.title('Distribution of Coffee Price per 100g (USD)')
     st.pyplot(plt)
 
-    # Calculate IQR for price
-    Q1 = df['100g_USD'].quantile(0.25)
-    Q3 = df['100g_USD'].quantile(0.75)
-    IQR = Q3 - Q1
-    price_lower_bound = max(0, Q1 - 1.5 * IQR)
-    price_upper_bound = Q3 + 1.5 * IQR
+    # Code for calculating IQR and filtering out price outliers
+    st.code("""
+Q1 = df['100g_USD'].quantile(0.25)
+Q3 = df['100g_USD'].quantile(0.75)
+IQR = Q3 - Q1
+price_lower_bound = max(0, Q1 - 1.5 * IQR)
+price_upper_bound = Q3 + 1.5 * IQR
 
-    st.write('Price Lower Bound:', price_lower_bound)
-    st.write('Price Upper Bound:', price_upper_bound)
+df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
+    """, language='python')
 
-    # Filter out price outliers
-    df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
     st.markdown("**Price Statistics after Outlier Removal:**")
     st.write(df['100g_USD'].describe())
 
-    # Rating Outliers Visualization
+    # Repeat the process for ratings
     st.subheader("Removing Rating Outliers")
-    st.markdown("**Rating Column Distribution:**")
     plt.figure(figsize=(10, 4))
     plt.boxplot(df['rating'], vert=False)
+    plt.ylabel('Rating Column')
     plt.xlabel('Rating Values')
     plt.title('Distribution of Coffee Ratings')
     st.pyplot(plt)
 
-    # Calculate IQR for ratings
-    Q1 = df['rating'].quantile(0.25)
-    Q3 = df['rating'].quantile(0.75)
-    IQR = Q3 - Q1
-    rating_lower_bound = max(0, Q1 - 1.5 * IQR)
-    rating_upper_bound = Q3 + 1.5 * IQR
+    # Code for calculating IQR and filtering out rating outliers
+    st.code("""
+Q1 = df['rating'].quantile(0.25)
+Q3 = df['rating'].quantile(0.75)
+IQR = Q3 - Q1
+rating_lower_bound = max(0, Q1 - 1.5 * IQR)
+rating_upper_bound = Q3 + 1.5 * IQR
 
-    st.write('Rating Lower Bound:', rating_lower_bound)
-    st.write('Rating Upper Bound:', rating_upper_bound)
+df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bound)]
+    """, language='python')
 
-    # Filter out rating outliers
-    df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bound)]
     st.markdown("**Rating Statistics after Outlier Removal:**")
     st.write(df['rating'].describe())
 
     # Step 3: Text Pre-processing
     st.subheader("Coffee Review Text Pre-processing", divider=True)
     st.markdown("""
-    To analyze review text effectively, it must first be pre-processed. Here, we perform several 
-    steps including converting text to lowercase, removing punctuation, tokenizing words, 
-    removing stopwords, and applying lemmatization.
+    Text data often needs to be cleaned and processed to extract insights. 
+    Here, we will perform the following preprocessing steps on the coffee review descriptions:
+    
+    1. Convert text to lowercase.
+    2. Remove punctuation.
+    3. Tokenize words.
+    4. Remove stopwords (common words like 'the' and 'is' that don't add much meaning).
+    5. Lemmatize words (reduce words to their base form).
     """)
 
-    # Preview the original text columns
-    st.write("Original Text Data (Descriptions):")
-    st.write(df[['desc_1', 'desc_2', 'desc_3']].head())
+    # Code for preprocessing text data
+    st.code("""
+def preprocess_text(text):
+    text = text.lower()
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    tokens = word_tokenize(text)
+    tokens = [word for word in tokens if word not in stop_words]
+    tokens = [lemmatizer.lemmatize(token) for token in tokens]
+    return tokens
 
-    # Text pre-processing function
-    def preprocess_text(text):
-        # 1. Lowercase
-        text = text.lower()
-        # 2. Remove punctuation
-        text = text.translate(str.maketrans('', '', string.punctuation))
-        # 3. Tokenize words
-        tokens = word_tokenize(text)
-        # 4. Remove stopwords
-        tokens = [word for word in tokens if word not in stop_words]
-        # 5. Lemmatize tokens
-        tokens = [lemmatizer.lemmatize(word) for word in tokens]
-        return tokens
+df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
+df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
+df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
+    """, language='python')
 
-    # Apply pre-processing to description columns
-    df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
-    df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
-    df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
-
-    # Display processed text data
-    st.write("Processed Text Data:")
+    # Display the processed text data
+    st.write("Pre-processed Text Columns:")
     st.write(df[['desc_1_processed', 'desc_2_processed', 'desc_3_processed']].head())
 
-    # Step 4: Encoding Categorical Variables
-    st.subheader("Encoding Categorical Variables", divider=True)
+    # Step 4: Encoding Categorical Columns
+    st.subheader("Encoding Categorical Columns", divider=True)
     st.markdown("""
-    Machine learning algorithms require numerical inputs. We'll use label encoding to 
-    convert categorical columns like `name`, `roaster`, `roast`, etc., into numerical values.
+    Encoding categorical columns is essential to make them usable in machine learning models. 
+    Here, we use label encoding to convert text-based categorical values into numeric form.
     """)
 
-    # Initialize LabelEncoder
-    encoder = LabelEncoder()
-    
-    # Encoding selected columns
-    df['name_encoded'] = encoder.fit_transform(df['name'])
-    df['roaster_encoded'] = encoder.fit_transform(df['roaster'])
-    df['roast_encoded'] = encoder.fit_transform(df['roast'])
-    df['loc_country_encoded'] = encoder.fit_transform(df['loc_country'])
-    df['origin_1_encoded'] = encoder.fit_transform(df['origin_1'])
-    df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
+    # Code for encoding categorical columns
+    st.code("""
+encoder = LabelEncoder()
+df['name_encoded'] = encoder.fit_transform(df['name'])
+df['roaster_encoded'] = encoder.fit_transform(df['roaster'])
+df['roast_encoded'] = encoder.fit_transform(df['roast'])
+df['loc_country_encoded'] = encoder.fit_transform(df['loc_country'])
+df['origin_1_encoded'] = encoder.fit_transform(df['origin_1'])
+df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
+    """, language='python')
 
     # Display encoded columns
-    st.write("Encoded Columns Preview:")
-    st.write(df[['name', 'name_encoded', 'roaster', 'roaster_encoded']].head())
+    st.write("Encoded Columns:")
+    st.write(df[['name_encoded', 'roaster_encoded', 'roast_encoded', 'loc_country_encoded', 'origin_1_encoded', 'origin_2_encoded']].head())
 
-    # Summary of encoded mappings
-    def display_summary_mapping(column_name, encoded_column_name):
-        unique_summary = df[column_name].unique()
-        unique_summary_encoded = df[encoded_column_name].unique()
-        summary_mapping_df = pd.DataFrame({column_name: unique_summary, f'{column_name}_encoded': unique_summary_encoded})
-        st.write(f"{column_name} Summary Mapping:")
-        st.dataframe(summary_mapping_df)
-
-    # Display mappings for each encoded column
-    display_summary_mapping('name', 'name_encoded')
-    display_summary_mapping('roast', 'roast_encoded')
-    display_summary_mapping('roaster', 'roaster_encoded')
-    display_summary_mapping('loc_country', 'loc_country_encoded')
-    display_summary_mapping('origin_1', 'origin_1_encoded')
-    display_summary_mapping('origin_2', 'origin_2_encoded')
-    
 ###################################################################
 # EDA Page ########################################################
 elif st.session_state.page_selection == "eda":
