@@ -243,10 +243,9 @@ elif st.session_state.page_selection == "data_cleaning":
     missing_values = round((df.isnull().sum()/df.shape[0])*100, 2)
     st.write(missing_values)
 
-    # Show code snippet for removing null values
+    # Code snippet for removing null values
     st.code("""
-    # Drop NA values
-    df = df.dropna()
+df = df.dropna()
     """, language="python")
 
     st.write("Missing values after dropping NA:")
@@ -257,13 +256,8 @@ elif st.session_state.page_selection == "data_cleaning":
     num_duplicate_rows = len(duplicate_rows)
     st.write(f"Number of duplicate rows: {num_duplicate_rows}")
 
-    st.markdown("### Removing Outliers")
-    st.markdown("""
-    Outliers can significantly skew analysis results. We use the Interquartile Range (IQR) method to identify and remove outliers in the `100g_USD` (price per 100g) and `rating` columns.
-    """)
-
     ##### Removing Outliers
-    st.subheader("Removing Outliers in Price", divider=True)
+    st.subheader("Removing Outliers", divider=True)
     plt.figure(figsize=(10, 4))
     plt.boxplot(df['100g_USD'], vert=False)
     plt.ylabel('Price Column (100g_USD)')
@@ -271,23 +265,26 @@ elif st.session_state.page_selection == "data_cleaning":
     plt.title('Distribution of Coffee Price per 100g (USD)')
     st.pyplot(plt)
 
-    Q1 = df['100g_USD'].quantile(0.25)
-    Q3 = df['100g_USD'].quantile(0.75)
-    IQR = Q3 - Q1
-    price_lower_bound = max(0, Q1 - 1.5 * IQR)
-    price_upper_bound = Q3 + 1.5 * IQR
+    # Code snippet for removing outliers
+    st.code("""
+Q1 = df['100g_USD'].quantile(0.25)
+Q3 = df['100g_USD'].quantile(0.75)
+IQR = Q3 - Q1
+price_lower_bound = max(0, Q1 - 1.5 * IQR)
+price_upper_bound = Q3 + 1.5 * IQR
+
+df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
+    """, language="python")
 
     st.write('Lower Bound:', price_lower_bound)
     st.write('Upper Bound:', price_upper_bound)
-
-    # Filter the dataset to remove outliers
-    df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
 
     # Display price statistics
     st.markdown("**Price Statistics after Outlier Removal:**")
     st.write(df['100g_USD'].describe())
 
-    st.subheader("Removing Outliers in Rating", divider=True)
+    # Rating Outliers
+    st.subheader("Rating Outliers")
     plt.figure(figsize=(10, 4))
     plt.boxplot(df['rating'], vert=False)
     plt.ylabel('Rating Column')
@@ -295,32 +292,26 @@ elif st.session_state.page_selection == "data_cleaning":
     plt.title('Distribution of Coffee Ratings')
     st.pyplot(plt)
 
-    Q1 = df['rating'].quantile(0.25)
-    Q3 = df['rating'].quantile(0.75)
-    IQR = Q3 - Q1
-    rating_lower_bound = max(0, Q1 - 1.5 * IQR)
-    rating_upper_bound = Q3 + 1.5 * IQR
+    # Code snippet for rating outliers removal
+    st.code("""
+Q1 = df['rating'].quantile(0.25)
+Q3 = df['rating'].quantile(0.75)
+IQR = Q3 - Q1
+rating_lower_bound = max(0, Q1 - 1.5 * IQR)
+rating_upper_bound = Q3 + 1.5 * IQR
+
+df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bound)]
+    """, language="python")
 
     st.write('Lower Bound:', rating_lower_bound)
     st.write('Upper Bound:', rating_upper_bound)
-
-    # Filter the dataset to remove outliers
-    df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bound)]
 
     # Display rating statistics
     st.markdown("**Rating Statistics after Outlier Removal:**")
     st.write(df['rating'].describe())
 
-    ##### Text Pre-processing
-    st.subheader("Coffee Review Text Pre-processing", divider=True)
-    st.markdown("""
-    Text data often needs to be cleaned and processed to extract insights. Here, we will:
-    - Convert text to lowercase
-    - Remove punctuation
-    - Tokenize words
-    - Remove stopwords (common words like 'the' and 'is' that don't add much meaning)
-    - Lemmatize words (reduce words to their base form)
-    """)
+    ##### Text pre-processing
+    st.subheader("Coffee review text pre-processing", divider=True)
 
     lemmatizer = WordNetLemmatizer()
     stop_words = set(stopwords.words('english'))
@@ -328,33 +319,41 @@ elif st.session_state.page_selection == "data_cleaning":
     st.markdown("df[['desc_1', 'desc_2', 'desc_3']].head()")
     st.write(df[['desc_1', 'desc_2', 'desc_3']].head())
 
-    # Show code snippet for text pre-processing
+    # Code snippet for text pre-processing
     st.code("""
-    # Combine all the preprocessing techniques into one function
-    def preprocess_text(text):
-        text = text.lower()  # 1. Lowercase
-        text = text.translate(str.maketrans('', '', string.punctuation))  # 2. Remove punctuation
-        tokens = word_tokenize(text)  # 3. Tokenize
-        tokens = [word for word in tokens if word not in stop_words]  # 4. Stopword Removal
-        tokens = [lemmatizer.lemmatize(token) for token in tokens]  # 5. Lemmatize
-        return tokens
+def preprocess_text(text):
+    # 1. Lowercase
+    text = text.lower()
 
-    df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
-    df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
-    df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
+    # 2. Remove punctuations
+    text = text.translate(str.maketrans('', '', string.punctuation))
+
+    # 3. Tokenize
+    tokens = word_tokenize(text)
+
+    # 4. Stopword Removal
+    stop_words = set(stopwords.words('english'))
+    tokens = [word for word in tokens if word not in stop_words]
+
+    # 5. Lemmatize
+    lemmatizer = WordNetLemmatizer()
+    tokens = [lemmatizer.lemmatize(token) for token in tokens]
+
+    return tokens
+
+df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
+df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
+df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
     """, language="python")
 
     # Display the processed DataFrame
     st.write(df[['desc_1_processed', 'desc_1', 'desc_2_processed', 'desc_2', 'desc_3_processed', 'desc_3']].head())
 
-    ##### Encoding Categorical Columns
-    st.subheader("Encoding Categorical Columns", divider=True)
-    st.markdown("""
-    Encoding categorical columns is essential to make them usable in machine learning models. Here, we will use label encoding to convert text-based categorical values into numeric form.
-    """)
+    ##### Encoding object columns
+    st.subheader("Encoding object columns", divider=True)
 
     # Display DataFrame info
-    info_buffer = st.empty()  
+    info_buffer = st.empty()
 
     # Create a summary DataFrame for display
     info_data = {
@@ -364,23 +363,19 @@ elif st.session_state.page_selection == "data_cleaning":
     }
 
     info_df = pd.DataFrame(info_data)
+
     st.dataframe(info_df)
 
-    # Initialize the LabelEncoder
-    encoder = LabelEncoder()
-
-    # Show code snippet for encoding categorical columns
+    # Code snippet for encoding categorical columns
     st.code("""
-    # Initialize the LabelEncoder
-    encoder = LabelEncoder()
+encoder = LabelEncoder()
 
-    # Encode object columns
-    df['name_encoded'] = encoder.fit_transform(df['name'])
-    df['roaster_encoded'] = encoder.fit_transform(df['roaster'])
-    df['roast_encoded'] = encoder.fit_transform(df['roast'])
-    df['loc_country_encoded'] = encoder.fit_transform(df['loc_country'])
-    df['origin_1_encoded'] = encoder.fit_transform(df['origin_1'])
-    df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
+df['name_encoded'] = encoder.fit_transform(df['name'])
+df['roaster_encoded'] = encoder.fit_transform(df['roaster'])
+df['roast_encoded'] = encoder.fit_transform(df['roast'])
+df['loc_country_encoded'] = encoder.fit_transform(df['loc_country'])
+df['origin_1_encoded'] = encoder.fit_transform(df['origin_1'])
+df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
     """, language="python")
 
     # Display encoded columns
@@ -403,7 +398,6 @@ elif st.session_state.page_selection == "data_cleaning":
     display_summary_mapping('loc_country', 'loc_country_encoded')
     display_summary_mapping('origin_1', 'origin_1_encoded')
     display_summary_mapping('origin_2', 'origin_2_encoded')
-
 
     
 ###################################################################
