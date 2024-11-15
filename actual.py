@@ -240,6 +240,7 @@ elif st.session_state.page_selection == "data_cleaning":
 
     ##### Removing nulls
     st.subheader("Removing nulls, duplicates, etc.", divider=True)
+    st.markdown("In this step, we will identify and remove any missing values, as these can lead to inaccurate analyses. We’ll also check for duplicate rows to ensure the dataset’s integrity.")
     missing_values = round((df.isnull().sum()/df.shape[0])*100, 2)
     st.write(missing_values)
 
@@ -247,7 +248,9 @@ elif st.session_state.page_selection == "data_cleaning":
     st.code("""
 df = df.dropna()
     """, language="python")
-
+    
+    # Drop NA
+    df = df.dropna()
     st.write("Missing values after dropping NA:")
     st.write(round((df.isnull().sum()/df.shape[0])*100, 2))
 
@@ -258,12 +261,19 @@ df = df.dropna()
 
     ##### Removing Outliers
     st.subheader("Removing Outliers", divider=True)
+    st.markdown("Outliers can significantly skew analysis results. We’ll use the Interquartile Range (IQR) method to identify and remove outliers in the 100g_USD (price per 100g) and rating columns.")
     plt.figure(figsize=(10, 4))
     plt.boxplot(df['100g_USD'], vert=False)
     plt.ylabel('Price Column (100g_USD)')
     plt.xlabel('Price Values')
     plt.title('Distribution of Coffee Price per 100g (USD)')
     st.pyplot(plt)
+
+    Q1 = df['100g_USD'].quantile(0.25)
+    Q3 = df['100g_USD'].quantile(0.75)
+    IQR = Q3 - Q1
+    price_lower_bound = max(0, Q1 - 1.5 * IQR)
+    price_upper_bound = Q3 + 1.5 * IQR
 
     # Code snippet for removing outliers
     st.code("""
@@ -275,9 +285,12 @@ price_upper_bound = Q3 + 1.5 * IQR
 
 df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
     """, language="python")
-
+    
     st.write('Lower Bound:', price_lower_bound)
     st.write('Upper Bound:', price_upper_bound)
+
+    # Filter the dataset to remove outliers
+    df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
 
     # Display price statistics
     st.markdown("**Price Statistics after Outlier Removal:**")
@@ -285,12 +298,19 @@ df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_b
 
     # Rating Outliers
     st.subheader("Rating Outliers")
+    st.markdown("We will also remove outliers from the rating column using the same IQR method.")
     plt.figure(figsize=(10, 4))
     plt.boxplot(df['rating'], vert=False)
     plt.ylabel('Rating Column')
     plt.xlabel('Rating Values')
     plt.title('Distribution of Coffee Ratings')
     st.pyplot(plt)
+
+    Q1 = df['rating'].quantile(0.25)
+    Q3 = df['rating'].quantile(0.75)
+    IQR = Q3 - Q1
+    rating_lower_bound = max(0, Q1 - 1.5 * IQR)
+    rating_upper_bound = Q3 + 1.5 * IQR
 
     # Code snippet for rating outliers removal
     st.code("""
@@ -306,19 +326,22 @@ df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bou
     st.write('Lower Bound:', rating_lower_bound)
     st.write('Upper Bound:', rating_upper_bound)
 
+    # Filter the dataset to remove outliers
+    df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bound)]
+
     # Display rating statistics
     st.markdown("**Rating Statistics after Outlier Removal:**")
     st.write(df['rating'].describe())
 
+    
     ##### Text pre-processing
     st.subheader("Coffee review text pre-processing", divider=True)
-
-    lemmatizer = WordNetLemmatizer()
-    stop_words = set(stopwords.words('english'))
-
-    st.markdown("df[['desc_1', 'desc_2', 'desc_3']].head()")
-    st.write(df[['desc_1', 'desc_2', 'desc_3']].head())
-
+    st.markdown("Text data often needs to be cleaned and processed to extract insights. Here, we will perform the following preprocessing steps on the coffee review descriptions:\n"
+                "- Convert text to lowercase.\n"
+                "- Remove punctuation.\n"
+                "- Tokenize words.\n"
+                "- Remove stopwords (common words like 'the' and 'is' that don't add much meaning).\n"
+                "- Lemmatize words (reduce words to their base form).")
     # Code snippet for text pre-processing
     st.code("""
 def preprocess_text(text):
@@ -346,14 +369,52 @@ df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
 df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
     """, language="python")
 
+
+    lemmatizer = WordNetLemmatizer()
+    stop_words = set(stopwords.words('english'))
+
+   
+    st.write(df[['desc_1', 'desc_2', 'desc_3']].head())
+
+    # Combining all the preprocessing techniques in one function
+    def preprocess_text(text):
+        # 1. Lowercase
+        text = text.lower()
+
+        # 2. Remove punctuations
+        text = text.translate(str.maketrans('', '', string.punctuation))
+
+        # 3. Tokenize
+        tokens = word_tokenize(text)
+
+        # 4. Stopword Removal
+        stop_words = set(stopwords.words('english'))
+        tokens = [word for word in tokens if word not in stop_words]
+
+        # 5. Lemmatize
+        lemmatizer = WordNetLemmatizer()
+        tokens = [lemmatizer.lemmatize(token) for token in tokens]
+
+        return tokens
+
+
+    # Apply the preprocessing
+    df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
+    df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
+    df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
+
+
+    
+    
     # Display the processed DataFrame
     st.write(df[['desc_1_processed', 'desc_1', 'desc_2_processed', 'desc_2', 'desc_3_processed', 'desc_3']].head())
 
     ##### Encoding object columns
     st.subheader("Encoding object columns", divider=True)
+    st.markdown("Encoding categorical columns is essential to make them usable in machine learning models. Here, we use label encoding to convert text-based categorical values into numeric form.")
 
     # Display DataFrame info
-    info_buffer = st.empty()
+    info_buffer = st.empty()  
 
     # Create a summary DataFrame for display
     info_data = {
@@ -366,17 +427,19 @@ df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
 
     st.dataframe(info_df)
 
-    # Code snippet for encoding categorical columns
-    st.code("""
-encoder = LabelEncoder()
+    # Initialize the LabelEncoder
+    encoder = LabelEncoder()
 
-df['name_encoded'] = encoder.fit_transform(df['name'])
-df['roaster_encoded'] = encoder.fit_transform(df['roaster'])
-df['roast_encoded'] = encoder.fit_transform(df['roast'])
-df['loc_country_encoded'] = encoder.fit_transform(df['loc_country'])
-df['origin_1_encoded'] = encoder.fit_transform(df['origin_1'])
-df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
-    """, language="python")
+    # Encode object columns
+    df['name_encoded'] = encoder.fit_transform(df['name'])
+    df['roaster_encoded'] = encoder.fit_transform(df['roaster'])
+    df['roast_encoded'] = encoder.fit_transform(df['roast'])
+    df['loc_country_encoded'] = encoder.fit_transform(df['loc_country'])
+    df['origin_1_encoded'] = encoder.fit_transform(df['origin_1'])
+    df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
+
+    # Store the cleaned DataFrame in session state
+    st.session_state.df = df
 
     # Display encoded columns
     st.subheader("Encoded Columns Preview")
@@ -398,7 +461,6 @@ df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
     display_summary_mapping('loc_country', 'loc_country_encoded')
     display_summary_mapping('origin_1', 'origin_1_encoded')
     display_summary_mapping('origin_2', 'origin_2_encoded')
-
     
 ###################################################################
 # EDA Page ########################################################
@@ -927,74 +989,133 @@ elif st.session_state.page_selection == "clustering_analysis":
 elif st.session_state.page_selection == "coffee_price_prediction":
     st.header("☕ Coffee Price Prediction Model")
 
-    # Create a copy of the original DataFrame with a unique name for regression
-    df_coffeeprice_regression = st.session_state.df.copy()  # Use cleaned DataFrame stored in session state
+    # Ensure DataFrame is available in session state
+    if 'df' not in st.session_state:
+        st.error("Please process the data in the Data Cleaning page first")
+        st.stop()
+    
+    # Load the cleaned DataFrame
+    df = st.session_state.df 
 
-    # Select relevant columns and rename them if pre-processed (already cleaned)
-    df_coffeeprice_regression = df_coffeeprice_regression[['roast', 'origin_2', 'loc_country', '100g_USD']]
-    df_coffeeprice_regression = df_coffeeprice_regression.rename(columns={
-        'origin_2': 'origin_2_processed',
-        'loc_country': 'loc_processed'
-    })
+    # Set up tabs for the regression model
+    tab1, tab2 = st.tabs(["Machine Learning", "Model Evaluation"])
 
-    # Drop rows with missing values if any
-    df_coffeeprice_regression = df_coffeeprice_regression.dropna()
+    ### Tab 1: Machine Learning ###
+    with tab1:
+        st.subheader("Model Training")
+        
+        # 1. Create a copy of the DataFrame for regression analysis
+        df_coffeeprice_regression = df.copy()
 
-    # Handling Outliers using IQR for '100g_USD'
-    Q1 = df_coffeeprice_regression['100g_USD'].quantile(0.25)
-    Q3 = df_coffeeprice_regression['100g_USD'].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-    df_coffeeprice_regression = df_coffeeprice_regression[(df_coffeeprice_regression['100g_USD'] >= lower_bound) & 
-                                                          (df_coffeeprice_regression['100g_USD'] <= upper_bound)]
+        # 2. Select relevant columns and rename them if pre-processed
+        df_coffeeprice_regression = df_coffeeprice_regression[['roast', 'origin_2', 'loc_country', '100g_USD']]
+        df_coffeeprice_regression = df_coffeeprice_regression.rename(columns={
+            'origin_2': 'origin_2_processed',
+            'loc_country': 'loc_processed'
+        })
 
-    # Encoding Categorical Variables
-    le_roast = LabelEncoder()
-    le_origin_2 = LabelEncoder()
-    le_location = LabelEncoder()
+        # 3. Drop rows with missing values
+        df_coffeeprice_regression = df_coffeeprice_regression.dropna()
 
-    df_coffeeprice_regression['roast'] = le_roast.fit_transform(df_coffeeprice_regression['roast'])
-    df_coffeeprice_regression['origin_2_processed'] = le_origin_2.fit_transform(df_coffeeprice_regression['origin_2_processed'])
-    df_coffeeprice_regression['loc_processed'] = le_location.fit_transform(df_coffeeprice_regression['loc_processed'])
+        ### Outlier Handling ###
+        # 4. Remove outliers using the Interquartile Range (IQR) method
+        Q1 = df_coffeeprice_regression['100g_USD'].quantile(0.25)
+        Q3 = df_coffeeprice_regression['100g_USD'].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+        df_coffeeprice_regression = df_coffeeprice_regression[
+            (df_coffeeprice_regression['100g_USD'] >= lower_bound) & 
+            (df_coffeeprice_regression['100g_USD'] <= upper_bound)
+        ]
 
-    # Define features (X) and target (y)
-    X = df_coffeeprice_regression[['roast', 'origin_2_processed', 'loc_processed']]
-    y = df_coffeeprice_regression['100g_USD']
+        ### Encoding Categorical Variables ###
+        # 5. Encode categorical features into numerical values
+        le_roast = LabelEncoder()
+        le_origin_2 = LabelEncoder()
+        le_location = LabelEncoder()
 
-    # No need for SMOTE since this is a regression problem
-    # Split the data into training (70%) and testing (30%) sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+        df_coffeeprice_regression['roast'] = le_roast.fit_transform(df_coffeeprice_regression['roast'])
+        df_coffeeprice_regression['origin_2_processed'] = le_origin_2.fit_transform(df_coffeeprice_regression['origin_2_processed'])
+        df_coffeeprice_regression['loc_processed'] = le_location.fit_transform(df_coffeeprice_regression['loc_processed'])
 
-    # Random Forest Regressor
-    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-    rf_model.fit(X_train, y_train)
-    rf_pred = rf_model.predict(X_test)
-    rf_mse = mean_squared_error(y_test, rf_pred)
-    st.write(f"Random Forest - Mean Squared Error: {rf_mse:.2f}")
+        # 6. Define features (X) and target (y)
+        X = df_coffeeprice_regression[['roast', 'origin_2_processed', 'loc_processed']]
+        y = df_coffeeprice_regression['100g_USD']
 
-    # Decision Tree Regressor
-    dt_model = DecisionTreeRegressor(random_state=42)
-    dt_model.fit(X_train, y_train)
-    dt_pred = dt_model.predict(X_test)
-    dt_mse = mean_squared_error(y_test, dt_pred)
-    st.write(f"Decision Tree - Mean Squared Error: {dt_mse:.2f}")
+        ### Data Splitting ###
+        # 7. Split data into training (70%) and testing (30%) sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-    # Visualize Actual vs Predicted Prices for Random Forest
-    st.write("### Actual vs Predicted Prices (Random Forest)")
-    fig, ax = plt.subplots()
-    ax.scatter(y_test, rf_pred, label='Random Forest', alpha=0.7)
-    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)
-    ax.set_xlabel('Actual Price (USD)')
-    ax.set_ylabel('Predicted Price (USD)')
-    ax.legend()
-    st.pyplot(fig)
+        ### Model Training ###
+        # 8. Train a Random Forest Regressor model
+        rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+        rf_model.fit(X_train, y_train)
 
-    # Feature Importance Analysis for Random Forest
-    st.write("### Feature Importance (Random Forest)")
-    rf_importance = rf_model.feature_importances_
-    for i, score in enumerate(rf_importance):
-        st.write(f"Feature: {X.columns[i]}, Score: {score:.4f}")
+        # 9. Train a Decision Tree Regressor model
+        dt_model = DecisionTreeRegressor(random_state=42)
+        dt_model.fit(X_train, y_train)
+
+        st.success("Models trained successfully!")
+
+    ### Tab 2: Model Evaluation ###
+    with tab2:
+        st.subheader("Model Evaluation")
+        
+        # 10. Evaluate Random Forest model performance
+        rf_pred = rf_model.predict(X_test)
+        rf_mse = mean_squared_error(y_test, rf_pred)
+        rf_r2 = r2_score(y_test, rf_pred)
+        st.write(f"Random Forest - Mean Squared Error (MSE): {rf_mse:.2f}")
+        st.write(f"Random Forest - R² Score: {rf_r2:.2f}")
+
+        # 11. Evaluate Decision Tree model performance
+        dt_pred = dt_model.predict(X_test)
+        dt_mse = mean_squared_error(y_test, dt_pred)
+        dt_r2 = r2_score(y_test, dt_pred)
+        st.write(f"Decision Tree - Mean Squared Error (MSE): {dt_mse:.2f}")
+        st.write(f"Decision Tree - R² Score: {dt_r2:.2f}")
+
+        ### Visualization: Actual vs Predicted Prices ###
+        st.subheader("Actual vs Predicted Prices (Random Forest)")
+        fig, ax = plt.subplots()
+        ax.scatter(y_test, rf_pred, label='Random Forest', alpha=0.7)
+        ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)
+        ax.set_xlabel('Actual Price (USD)')
+        ax.set_ylabel('Predicted Price (USD)')
+        ax.legend()
+        st.pyplot(fig)
+
+        ### Feature Importance ###
+        st.subheader("Feature Importance (Random Forest)")
+        rf_importance = rf_model.feature_importances_
+        for i, score in enumerate(rf_importance):
+            st.write(f"Feature: {X.columns[i]}, Score: {score:.4f}")
+
+        ### User Input for Prediction ###
+        st.subheader("Predict Coffee Price with Your Inputs")
+        user_roast = st.selectbox('Select Roast Type:', le_roast.classes_)
+        user_origin = st.selectbox('Select Bean Origin:', le_origin_2.classes_)
+        user_location = st.selectbox('Select Roaster Location:', le_location.classes_)
+
+        # Encode user inputs
+        user_roast_encoded = le_roast.transform([user_roast])[0]
+        user_origin_encoded = le_origin_2.transform([user_origin])[0]
+        user_location_encoded = le_location.transform([user_location])[0]
+
+        # Predict using Random Forest model
+        user_input = pd.DataFrame({
+            'roast': [user_roast_encoded], 
+            'origin_2_processed': [user_origin_encoded], 
+            'loc_processed': [user_location_encoded]
+        })
+        
+        if st.button('Predict Price'):
+            user_prediction = rf_model.predict(user_input)
+            st.write(f"Predicted Coffee Price per 100g (USD): ${user_prediction[0]:.2f}")
+
+
+
                 
 ###################################################################
 # Description to Rating Page ################################################
