@@ -251,6 +251,32 @@ df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bou
                 "- Tokenize words.\n"
                 "- Remove stopwords (common words like 'the' and 'is' that don't add much meaning).\n"
                 "- Lemmatize words (reduce words to their base form).")
+    # Code snippet for text pre-processing
+    st.code("""
+def preprocess_text(text):
+    # 1. Lowercase
+    text = text.lower()
+
+    # 2. Remove punctuations
+    text = text.translate(str.maketrans('', '', string.punctuation))
+
+    # 3. Tokenize
+    tokens = word_tokenize(text)
+
+    # 4. Stopword Removal
+    stop_words = set(stopwords.words('english'))
+    tokens = [word for word in tokens if word not in stop_words]
+
+    # 5. Lemmatize
+    lemmatizer = WordNetLemmatizer()
+    tokens = [lemmatizer.lemmatize(token) for token in tokens]
+
+    return tokens
+
+df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
+df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
+df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
+    """, language="python")
 
 
     lemmatizer = WordNetLemmatizer()
@@ -287,32 +313,7 @@ df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bou
     df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
 
 
-    # Code snippet for text pre-processing
-    st.code("""
-def preprocess_text(text):
-    # 1. Lowercase
-    text = text.lower()
-
-    # 2. Remove punctuations
-    text = text.translate(str.maketrans('', '', string.punctuation))
-
-    # 3. Tokenize
-    tokens = word_tokenize(text)
-
-    # 4. Stopword Removal
-    stop_words = set(stopwords.words('english'))
-    tokens = [word for word in tokens if word not in stop_words]
-
-    # 5. Lemmatize
-    lemmatizer = WordNetLemmatizer()
-    tokens = [lemmatizer.lemmatize(token) for token in tokens]
-
-    return tokens
-
-df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
-df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
-df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
-    """, language="python")
+    
     
     # Display the processed DataFrame
     st.write(df[['desc_1_processed', 'desc_1', 'desc_2_processed', 'desc_2', 'desc_3_processed', 'desc_3']].head())
