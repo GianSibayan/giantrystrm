@@ -227,6 +227,7 @@ elif st.session_state.page_selection == "dataset":
     
 
 ###################################################################
+###################################################################
 # Data Cleaning Page ##############################################
 elif st.session_state.page_selection == "data_cleaning":
     st.header("🧼 Data Cleaning and Data Pre-processing")
@@ -250,21 +251,16 @@ elif st.session_state.page_selection == "data_cleaning":
     st.write("Percentage of Missing Values in Each Column:")
     st.write(missing_values)
 
-    # Code for dropping missing values
-    st.code("""
-df = df.dropna()
-    """, language='python')
+    # Dropping missing values
+    df = df.dropna()
 
     # Check for duplicates
     duplicate_rows = df[df.duplicated()]
     num_duplicate_rows = len(duplicate_rows)
     st.write(f"Number of duplicate rows: {num_duplicate_rows}")
 
-    # Code for removing duplicates
-    st.code("""
-df = df.drop_duplicates()
-    """, language='python')
-
+    # Removing duplicates
+    df = df.drop_duplicates()
     st.write(f"Duplicate rows removed. Remaining rows: {df.shape[0]}")
 
     # Step 2: Removing Outliers
@@ -282,16 +278,14 @@ df = df.drop_duplicates()
     plt.title('Distribution of Coffee Price per 100g (USD)')
     st.pyplot(plt)
 
-    # Code for calculating IQR and filtering out price outliers
-    st.code("""
-Q1 = df['100g_USD'].quantile(0.25)
-Q3 = df['100g_USD'].quantile(0.75)
-IQR = Q3 - Q1
-price_lower_bound = max(0, Q1 - 1.5 * IQR)
-price_upper_bound = Q3 + 1.5 * IQR
+    # Calculate IQR and filter out price outliers
+    Q1 = df['100g_USD'].quantile(0.25)
+    Q3 = df['100g_USD'].quantile(0.75)
+    IQR = Q3 - Q1
+    price_lower_bound = max(0, Q1 - 1.5 * IQR)
+    price_upper_bound = Q3 + 1.5 * IQR
 
-df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
-    """, language='python')
+    df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
 
     st.markdown("**Price Statistics after Outlier Removal:**")
     st.write(df['100g_USD'].describe())
@@ -305,16 +299,14 @@ df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_b
     plt.title('Distribution of Coffee Ratings')
     st.pyplot(plt)
 
-    # Code for calculating IQR and filtering out rating outliers
-    st.code("""
-Q1 = df['rating'].quantile(0.25)
-Q3 = df['rating'].quantile(0.75)
-IQR = Q3 - Q1
-rating_lower_bound = max(0, Q1 - 1.5 * IQR)
-rating_upper_bound = Q3 + 1.5 * IQR
+    # Calculate IQR and filter out rating outliers
+    Q1 = df['rating'].quantile(0.25)
+    Q3 = df['rating'].quantile(0.75)
+    IQR = Q3 - Q1
+    rating_lower_bound = max(0, Q1 - 1.5 * IQR)
+    rating_upper_bound = Q3 + 1.5 * IQR
 
-df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bound)]
-    """, language='python')
+    df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bound)]
 
     st.markdown("**Rating Statistics after Outlier Removal:**")
     st.write(df['rating'].describe())
@@ -332,20 +324,22 @@ df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bou
     5. Lemmatize words (reduce words to their base form).
     """)
 
-    # Code for preprocessing text data
-    st.code("""
-def preprocess_text(text):
-    text = text.lower()
-    text = text.translate(str.maketrans('', '', string.punctuation))
-    tokens = word_tokenize(text)
-    tokens = [word for word in tokens if word not in stop_words]
-    tokens = [lemmatizer.lemmatize(token) for token in tokens]
-    return tokens
+    # Displaying text preprocessing
+    st.write("Applying text preprocessing...")
 
-df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
-df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
-df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
-    """, language='python')
+    # Text preprocessing function (this will execute)
+    def preprocess_text(text):
+        text = text.lower()
+        text = text.translate(str.maketrans('', '', string.punctuation))
+        tokens = word_tokenize(text)
+        tokens = [word for word in tokens if word not in stop_words]
+        tokens = [lemmatizer.lemmatize(token) for token in tokens]
+        return tokens
+
+    # Applying preprocessing to review columns
+    df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
+    df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
+    df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
 
     # Display the processed text data
     st.write("Pre-processed Text Columns:")
@@ -358,19 +352,14 @@ df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
     Here, we use label encoding to convert text-based categorical values into numeric form.
     """)
 
-    # Code for encoding categorical columns
-    st.code("""
-encoder = LabelEncoder()
-df['name_encoded'] = encoder.fit_transform(df['name'])
-df['roaster_encoded'] = encoder.fit_transform(df['roaster'])
-df['roast_encoded'] = encoder.fit_transform(df['roast'])
-df['loc_country_encoded'] = encoder.fit_transform(df['loc_country'])
-df['origin_1_encoded'] = encoder.fit_transform(df['origin_1'])
-df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
-    """, language='python')
-    
-    # After cleaning the data, store it in session state
-    st.session_state.df = df
+    # Encoding categorical columns
+    encoder = LabelEncoder()
+    df['name_encoded'] = encoder.fit_transform(df['name'])
+    df['roaster_encoded'] = encoder.fit_transform(df['roaster'])
+    df['roast_encoded'] = encoder.fit_transform(df['roast'])
+    df['loc_country_encoded'] = encoder.fit_transform(df['loc_country'])
+    df['origin_1_encoded'] = encoder.fit_transform(df['origin_1'])
+    df['origin_2_encoded'] = encoder.fit_transform(df['origin_2'])
 
     # Display encoded columns
     st.write("Encoded Columns:")
