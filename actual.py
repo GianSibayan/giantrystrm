@@ -404,6 +404,7 @@ elif st.session_state.page_selection == "data_cleaning":
     display_summary_mapping('origin_1', 'origin_1_encoded')
     display_summary_mapping('origin_2', 'origin_2_encoded')
 
+
     
 ###################################################################
 # EDA Page ########################################################
