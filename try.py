@@ -152,6 +152,11 @@ elif st.session_state.page_selection == "data_cleaning":
     missing_values = round((df.isnull().sum()/df.shape[0])*100, 2)
     st.write(missing_values)
 
+    # Code snippet for removing null values
+    st.code("""
+df = df.dropna()
+    """, language="python")
+    
     # Drop NA
     df = df.dropna()
     st.write("Missing values after dropping NA:")
@@ -177,6 +182,16 @@ elif st.session_state.page_selection == "data_cleaning":
     price_lower_bound = max(0, Q1 - 1.5 * IQR)
     price_upper_bound = Q3 + 1.5 * IQR
 
+    # Code snippet for removing outliers
+    st.code("""
+Q1 = df['100g_USD'].quantile(0.25)
+Q3 = df['100g_USD'].quantile(0.75)
+IQR = Q3 - Q1
+price_lower_bound = max(0, Q1 - 1.5 * IQR)
+price_upper_bound = Q3 + 1.5 * IQR
+
+df = df[(df['100g_USD'] >= price_lower_bound) & (df['100g_USD'] <= price_upper_bound)]
+    """, language="python")
     
     st.write('Lower Bound:', price_lower_bound)
     st.write('Upper Bound:', price_upper_bound)
@@ -202,6 +217,17 @@ elif st.session_state.page_selection == "data_cleaning":
     IQR = Q3 - Q1
     rating_lower_bound = max(0, Q1 - 1.5 * IQR)
     rating_upper_bound = Q3 + 1.5 * IQR
+
+    # Code snippet for rating outliers removal
+    st.code("""
+Q1 = df['rating'].quantile(0.25)
+Q3 = df['rating'].quantile(0.75)
+IQR = Q3 - Q1
+rating_lower_bound = max(0, Q1 - 1.5 * IQR)
+rating_upper_bound = Q3 + 1.5 * IQR
+
+df = df[(df['rating'] >= rating_lower_bound) & (df['rating'] <= rating_upper_bound)]
+    """, language="python")
 
     st.write('Lower Bound:', rating_lower_bound)
     st.write('Upper Bound:', rating_upper_bound)
@@ -243,11 +269,40 @@ elif st.session_state.page_selection == "data_cleaning":
 
         return tokens
 
+
     # Apply the preprocessing
     df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
     df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
     df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
 
+
+    # Code snippet for text pre-processing
+    st.code("""
+def preprocess_text(text):
+    # 1. Lowercase
+    text = text.lower()
+
+    # 2. Remove punctuations
+    text = text.translate(str.maketrans('', '', string.punctuation))
+
+    # 3. Tokenize
+    tokens = word_tokenize(text)
+
+    # 4. Stopword Removal
+    stop_words = set(stopwords.words('english'))
+    tokens = [word for word in tokens if word not in stop_words]
+
+    # 5. Lemmatize
+    lemmatizer = WordNetLemmatizer()
+    tokens = [lemmatizer.lemmatize(token) for token in tokens]
+
+    return tokens
+
+df['desc_1_processed'] = df['desc_1'].apply(preprocess_text)
+df['desc_2_processed'] = df['desc_2'].apply(preprocess_text)
+df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
+    """, language="python")
+    
     # Display the processed DataFrame
     st.write(df[['desc_1_processed', 'desc_1', 'desc_2_processed', 'desc_2', 'desc_3_processed', 'desc_3']].head())
 
