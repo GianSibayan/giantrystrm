@@ -282,7 +282,7 @@ df['desc_3_processed'] = df['desc_3'].apply(preprocess_text)
     lemmatizer = WordNetLemmatizer()
     stop_words = set(stopwords.words('english'))
 
-    st.markdown("`df[['desc_1', 'desc_2', 'desc_3']].head()`")
+   
     st.write(df[['desc_1', 'desc_2', 'desc_3']].head())
 
     # Combining all the preprocessing techniques in one function
